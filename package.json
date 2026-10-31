@@ -1,0 +1,33 @@
+{
+  "name": "precedent",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Precedent: your team's case law, enforced for people and AI agents. An Atlassian Forge app.",
+  "license": "UNLICENSED",
+  "main": "src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "lint:forge": "forge lint",
+    "check": "npm run typecheck && npm test"
+  },
+  "dependencies": {
+    "@forge/api": "^8.4.0",
+    "@forge/bridge": "^7.2.1",
+    "@forge/events": "^3.0.9",
+    "@forge/kvs": "^2.1.1",
+    "@forge/llm": "^1.0.9",
+    "@forge/react": "^12.4.0",
+    "@forge/resolver": "^2.0.2",
+    "@forge/sql": "^4.0.9",
+    "react": "^18.3.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "@types/react": "^18.3.31",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5"
+  }
+}
