@@ -7,6 +7,7 @@ import { checkIssue, ratify, requestReview } from '../services/decisions';
 import { graphLookups } from '../tripwires/graphLookups';
 import { sweepTripwires } from '../tripwires/run';
 import { toDecisionView, toEventView } from '../views/decisionView';
+import { buildMap, type MapView } from '../views/mapView';
 import type { DecisionDetail, Failure, PanelView } from '../views/uiTypes';
 
 interface UiContext {
@@ -129,6 +130,27 @@ resolver.define('decision.detail', async ({ payload }): Promise<DecisionDetail |
   if (!decision) return { error: 'Decision not found.' };
   const events = await app.store.listTripwireEvents(decision.id, 20);
   return { decision: toDecisionView(decision), events: events.map((e) => toEventView(e, decision)) };
+});
+
+// Decision map
+
+const MAX_TEAM_LOOKUPS = 20;
+
+resolver.define('map.data', async (): Promise<MapView> => {
+  const app = await loadContext();
+  const decisions = await app.store.list({ statuses: ['ratified', 'under_review', 'superseded'], limit: 300 });
+  const [events, checks] = await Promise.all([app.store.listTripwireEvents(undefined, 15), app.store.listChecks(15)]);
+  // Teamwork Graph tells us which team each owner is on, so the map can show decisions by team.
+  const people = graphLookups().people;
+  const owners = [...new Set(decisions.map((d) => d.ownerAccountId).filter((id): id is string => Boolean(id)))].slice(0, MAX_TEAM_LOOKUPS);
+  const teamOfOwner = new Map<string, string>();
+  await Promise.all(
+    owners.map(async (owner) => {
+      const [team] = await people.teamsOf(owner);
+      if (team) teamOfOwner.set(owner, team.name);
+    }),
+  );
+  return buildMap(decisions, events, checks, teamOfOwner);
 });
 
 // Tripwires

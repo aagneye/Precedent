@@ -2,6 +2,7 @@ import React from 'react';
 import ForgeReconciler, { Box, Heading, Stack, Tab, TabList, TabPanel, Tabs, Text } from '@forge/react';
 import { DecisionsTab } from './home/DecisionsTab';
 import { InboxTab } from './home/InboxTab';
+import { MapTab } from './home/MapTab';
 
 const App = () => (
   <Stack space="space.300">
@@ -11,9 +12,15 @@ const App = () => (
     </Stack>
     <Tabs id="precedent-tabs">
       <TabList>
+        <Tab>Map</Tab>
         <Tab>Inbox</Tab>
         <Tab>Decisions</Tab>
       </TabList>
+      <TabPanel>
+        <Box paddingBlock="space.200">
+          <MapTab />
+        </Box>
+      </TabPanel>
       <TabPanel>
         <Box paddingBlock="space.200">
           <InboxTab />
