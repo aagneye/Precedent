@@ -206,6 +206,9 @@ modules:
     - key: harvest-daily-sweep
       function: harvest-sweep
       interval: day
+    - key: tripwire-hourly-sweep
+      function: tripwire-sweep
+      interval: hour
   consumer:
     - key: harvest-queue-consumer
       queue: precedent-harvest
@@ -240,6 +243,9 @@ modules:
       handler: index.harvestSweep
     - key: harvest-consumer
       handler: index.harvestConsumer
+      timeoutSeconds: 900
+    - key: tripwire-sweep
+      handler: index.tripwireSweep
       timeoutSeconds: 900
 resources:
   - key: panel

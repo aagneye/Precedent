@@ -4,6 +4,7 @@ import { DECISION_STATUSES, type DecisionPatch, type DecisionStatus } from '../d
 import { doc, paragraph, strong } from '../integrations/adf';
 import { addComment } from '../integrations/jira';
 import { checkIssue, ratify, requestReview } from '../services/decisions';
+import { sweepTripwires } from '../tripwires/run';
 import { toDecisionView, toEventView } from '../views/decisionView';
 import type { DecisionDetail, Failure, PanelView } from '../views/uiTypes';
 
@@ -127,6 +128,13 @@ resolver.define('decision.detail', async ({ payload }): Promise<DecisionDetail |
   if (!decision) return { error: 'Decision not found.' };
   const events = await app.store.listTripwireEvents(decision.id, 20);
   return { decision: toDecisionView(decision), events: events.map((e) => toEventView(e, decision)) };
+});
+
+// Tripwires
+
+resolver.define('tripwires.runNow', async () => {
+  const app = await loadContext();
+  return sweepTripwires(app);
 });
 
 export const uiResolver = resolver.getDefinitions();
