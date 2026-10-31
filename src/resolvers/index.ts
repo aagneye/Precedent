@@ -4,6 +4,7 @@ import { DECISION_STATUSES, type DecisionPatch, type DecisionStatus } from '../d
 import { doc, paragraph, strong } from '../integrations/adf';
 import { addComment } from '../integrations/jira';
 import { checkIssue, ratify, requestReview } from '../services/decisions';
+import { graphLookups } from '../tripwires/graphLookups';
 import { sweepTripwires } from '../tripwires/run';
 import { toDecisionView, toEventView } from '../views/decisionView';
 import type { DecisionDetail, Failure, PanelView } from '../views/uiTypes';
@@ -134,7 +135,8 @@ resolver.define('decision.detail', async ({ payload }): Promise<DecisionDetail |
 
 resolver.define('tripwires.runNow', async () => {
   const app = await loadContext();
-  return sweepTripwires(app);
+  // Runs as the person who clicked, so Teamwork Graph can answer team and goal lookups.
+  return sweepTripwires(app, graphLookups());
 });
 
 export const uiResolver = resolver.getDefinitions();

@@ -271,4 +271,8 @@ permissions:
     - read:jira-user
     - read:page:confluence
     - read:space:confluence
+    - read:graph:user:atlassian
+    - read:graph:team:atlassian
+    - read:graph:goal:atlassian
+    - read:graph:goal-update:atlassian
     - storage:app
