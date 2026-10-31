@@ -1,0 +1,56 @@
+modules:
+  trigger:
+    - key: harvest-jira-comment
+      function: on-jira-comment
+      events:
+        - avi:jira:commented:issue
+      filter:
+        ignoreSelf: true
+    - key: harvest-confluence-page
+      function: on-confluence-page
+      events:
+        - avi:confluence:created:page
+        - avi:confluence:updated:page
+  scheduledTrigger:
+    - key: harvest-daily-sweep
+      function: harvest-sweep
+      interval: day
+  consumer:
+    - key: harvest-queue-consumer
+      queue: precedent-harvest
+      function: harvest-consumer
+  sql:
+    - key: precedent-sql
+      engine: mysql
+  llm:
+    - key: precedent-llm
+      model:
+        - claude
+  function:
+    - key: on-jira-comment
+      handler: index.onJiraComment
+    - key: on-confluence-page
+      handler: index.onConfluencePage
+    - key: harvest-sweep
+      handler: index.harvestSweep
+    - key: harvest-consumer
+      handler: index.harvestConsumer
+      timeoutSeconds: 900
+app:
+  # Replaced by `forge register`.
+  id: ari:cloud:ecosystem::app/00000000-0000-0000-0000-000000000000
+  runtime:
+    name: nodejs22.x
+  compatibility:
+    jira:
+      required: true
+    confluence:
+      required: false
+permissions:
+  scopes:
+    - read:jira-work
+    - write:jira-work
+    - read:jira-user
+    - read:page:confluence
+    - read:space:confluence
+    - storage:app
