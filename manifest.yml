@@ -55,6 +55,14 @@ modules:
           - check-plan
           - search-decisions
           - record-decision
+  rovo:mcp:
+    - key: precedent-mcp
+      name: Precedent
+      tools:
+        - search-decisions
+        - check-plan
+        - record-decision
+        - get-issue-context
   action:
     - key: search-decisions
       name: Search decisions
