@@ -1,7 +1,8 @@
 import { guardLlm, type AppContext } from '../app/context';
 import { reviewProjectFor } from '../config/settings';
-import type { CheckChannel, DecisionPatch, NewAssumption } from '../domain/types';
-import { checkWork, type GuardResult } from '../guard/check';
+import { findDecisionKeys } from '../domain/keys';
+import type { CheckChannel, Decision, DecisionPatch, NewAssumption } from '../domain/types';
+import { checkWork, findRelevant, type GuardResult } from '../guard/check';
 import { OWNER_ASSUMPTION } from '../harvest/pipeline';
 import { getIssue, issueUrl, type IssueSummary } from '../integrations/jira';
 import { JiraReviews } from '../reviews/jiraReviews';
@@ -44,6 +45,42 @@ export async function checkPlan(
   const issue = issueKey ? await getIssue(issueKey) : undefined;
   const subject = issue ? `${plan}\n\nContext from ${issueSubject(issue)}` : plan;
   return checkWork(subject, { store: context.store, llm: guardLlm(context) }, { channel, actor, limit: 8 });
+}
+
+/** Decisions named by key in the query first, then the binding decisions that best match its words and tags. */
+export async function searchDecisions(context: AppContext, query: string, limit = 5): Promise<DecisionView[]> {
+  const named = await Promise.all(findDecisionKeys(query).map((key) => context.store.getByKey(key)));
+  const ranked = (await findRelevant(query, context.store)).map((r) => r.decision);
+  const seen = new Set<number>();
+  const results: DecisionView[] = [];
+  for (const decision of [...named, ...ranked]) {
+    if (!decision || seen.has(decision.id)) continue;
+    seen.add(decision.id);
+    results.push(toDecisionView(decision));
+    if (results.length >= limit) break;
+  }
+  return results;
+}
+
+export interface UnderReview {
+  decision: DecisionView;
+  latestEvidence?: string;
+  reviewIssueKey?: string;
+}
+
+export async function listUnderReview(context: AppContext): Promise<UnderReview[]> {
+  const decisions: Decision[] = await context.store.list({ statuses: ['under_review'], limit: 50 });
+  return Promise.all(
+    decisions.map(async (decision) => {
+      const events = await context.store.listTripwireEvents(decision.id, 10);
+      const withReview = events.find((e) => e.reviewIssueKey);
+      return {
+        decision: toDecisionView(decision),
+        latestEvidence: events[0]?.evidence,
+        reviewIssueKey: withReview?.reviewIssueKey,
+      };
+    }),
+  );
 }
 
 /** Makes a candidate binding. Fills in the owner if it's missing and makes sure the owner is watched. */

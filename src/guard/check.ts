@@ -52,12 +52,13 @@ export interface CheckOptions {
 
 const CANDIDATE_POOL = 40;
 
-async function findRanked(subject: string, deps: GuardDeps, extraTags: string[] = []): Promise<RankedDecision[]> {
-  const vocabulary = await deps.store.allTags();
+/** Binding decisions that share tags or words with the subject, best match first. */
+export async function findRelevant(subject: string, store: DecisionStore, extraTags: string[] = []): Promise<RankedDecision[]> {
+  const vocabulary = await store.allTags();
   const tags = normalizeTags([...extractTags(subject, vocabulary), ...extraTags], 20);
   const words = keywords(subject, 16);
   if (tags.length === 0 && words.length === 0) return [];
-  const pool = await deps.store.findCandidates({ tags, keywords: words, statuses: BINDING_STATUSES, limit: CANDIDATE_POOL });
+  const pool = await store.findCandidates({ tags, keywords: words, statuses: BINDING_STATUSES, limit: CANDIDATE_POOL });
   return rankDecisions({ tags, keywords: words }, pool);
 }
 
@@ -118,7 +119,7 @@ async function aiTags(subject: string, llm: LlmPort): Promise<string[]> {
 
 /** Checks proposed work (an issue, a plan, a diff summary) against the team's binding decisions. */
 export async function checkWork(subject: string, deps: GuardDeps, options: CheckOptions): Promise<GuardResult> {
-  let ranked = await findRanked(subject, deps);
+  let ranked = await findRelevant(subject, deps.store);
   let aiChecked = false;
   let note: string | undefined;
   let findings: Finding[];
@@ -128,7 +129,7 @@ export async function checkWork(subject: string, deps: GuardDeps, options: Check
     note = 'AI checking is off, so these matches come from shared tags and words.';
   } else {
     try {
-      if (ranked.length === 0) ranked = await findRanked(subject, deps, await aiTags(subject, deps.llm));
+      if (ranked.length === 0) ranked = await findRelevant(subject, deps.store, await aiTags(subject, deps.llm));
       const judged = ranked.length ? await judge(subject, ranked, deps.llm) : [];
       if (judged) {
         findings = judged;

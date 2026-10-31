@@ -15,6 +15,173 @@ modules:
       render: native
       title: Precedent
       icon: resource:icons;precedent.svg
+  rovo:agent:
+    - key: precedent-agent
+      name: Precedent
+      description: Knows what your team decided, why, and on which assumptions. Checks plans against those decisions and records new ones.
+      icon: resource:icons;precedent.svg
+      prompt: |
+        You are Precedent, the keeper of this team's decisions: what was decided, why, by whom, and on which assumptions.
+
+        How to work:
+        - For any "why do we…", "did we decide…" or "what's our policy on…" question, call search-decisions first. Answer only from what it returns. Cite decision keys (DEC-n) and link their sources. If nothing matches, say the team hasn't recorded a decision on it. Never invent a decision.
+        - When someone describes work they plan to do, call check-plan with their plan and the work item key if you know it. Lead with any conflicts, explain the decision and its rationale, and suggest a way to do the work that respects it.
+        - If a decision is under review, say so: it may change soon.
+        - If a decision looks outdated, offer to open a review with request-review. Confirm the reason with the user first.
+        - When the user states a new decision, offer to record it with record-decision. It lands in the inbox as a candidate until a teammate ratifies it.
+        - For a Jira work item, get-issue-context returns the item and the decisions that apply to it.
+        - list-under-review shows the decisions whose assumptions have broken.
+
+        Keep answers short and concrete.
+      conversationStarters:
+        - Why did we keep the ledger on PostgreSQL?
+        - Does adding a new HTTP client library conflict with any decision?
+        - Which decisions are under review, and why?
+      actions:
+        - search-decisions
+        - check-plan
+        - record-decision
+        - get-issue-context
+        - request-review
+        - list-under-review
+      skills:
+        - precedent-check
+  rovo:skill:
+    - key: precedent-check
+      source:
+        dir: skills/precedent-check
+      dependencies:
+        tools:
+          - check-plan
+          - search-decisions
+          - record-decision
+  action:
+    - key: search-decisions
+      name: Search decisions
+      function: act-search-decisions
+      actionVerb: GET
+      description: >-
+        Finds the team's decisions about a topic or question, with why they were made, who owns them, the assumptions they
+        rest on and links to their sources. Use it for any "why do we…" or "what did we decide about…" question.
+      inputs:
+        query:
+          title: Query
+          type: string
+          required: true
+          description: The topic or question, such as "why the ledger uses PostgreSQL", or a decision key like DEC-3.
+    - key: check-plan
+      name: Check a plan against decisions
+      function: act-check-plan
+      actionVerb: GET
+      description: >-
+        Call before implementing a task or change. Checks the plan against the team's binding decisions and returns
+        conflicts and the decisions that apply. Describe what will change and which services, libraries and data stores it
+        touches.
+      inputs:
+        plan:
+          title: Plan
+          type: string
+          required: true
+          description: What you intend to do and how, in a few sentences.
+        issueKey:
+          title: Work item key
+          type: string
+          required: false
+          description: The Jira work item the plan is for, such as PAY-12, if there is one.
+        agentName:
+          title: Agent name
+          type: string
+          required: false
+          description: Your name if you are an AI agent, such as Claude Code or Cursor, so the team can see who checked.
+    - key: record-decision
+      name: Record a decision
+      function: act-record-decision
+      actionVerb: CREATE
+      description: >-
+        Records a decision made while working, such as a design choice future work should stay consistent with, as a
+        candidate for the team to ratify in Precedent's inbox.
+      inputs:
+        title:
+          title: Title
+          type: string
+          required: true
+          description: A short name for the decision, at most ten words.
+        statement:
+          title: Statement
+          type: string
+          required: true
+          description: The rule future work must follow, in one or two sentences starting with "We".
+        rationale:
+          title: Rationale
+          type: string
+          required: false
+          description: Why this was decided.
+        issueKey:
+          title: Work item key
+          type: string
+          required: false
+          description: The Jira work item this decision came from, such as PAY-12.
+        tags:
+          title: Tags
+          type: string
+          required: false
+          description: Comma-separated scope tags such as services, technologies or vendors.
+        assumptions:
+          title: Assumptions
+          type: string
+          required: false
+          description: Conditions the decision depends on, one per line.
+        agentName:
+          title: Agent name
+          type: string
+          required: false
+          description: Your name if you are an AI agent, such as Claude Code or Cursor.
+    - key: get-issue-context
+      name: Get work item context
+      function: act-issue-context
+      actionVerb: GET
+      description: >-
+        Returns a Jira work item's summary and description together with the team decisions that apply to it. Use it when
+        starting work on a work item.
+      inputs:
+        issueKey:
+          title: Work item key
+          type: string
+          required: true
+          description: The Jira work item key, such as PAY-12.
+        agentName:
+          title: Agent name
+          type: string
+          required: false
+          description: Your name if you are an AI agent, such as Claude Code or Cursor.
+    - key: request-review
+      name: Request a decision review
+      function: act-request-review
+      actionVerb: CREATE
+      description: >-
+        Opens a review of a decision that may be outdated. Creates a "Decision review" work item for its owner and marks the
+        decision as under review.
+      inputs:
+        decisionKey:
+          title: Decision key
+          type: string
+          required: true
+          description: The decision to review, such as DEC-3.
+        reason:
+          title: Reason
+          type: string
+          required: true
+          description: What changed, or why the decision should be reconsidered.
+        issueKey:
+          title: Work item key
+          type: string
+          required: false
+          description: The Jira work item that prompted the review, if any.
+    - key: list-under-review
+      name: List decisions under review
+      function: act-under-review
+      actionVerb: GET
+      description: Lists the decisions currently under review, with what changed and the review work item for each.
   trigger:
     - key: harvest-jira-comment
       function: on-jira-comment
@@ -45,6 +212,18 @@ modules:
   function:
     - key: ui-resolver
       handler: index.uiResolver
+    - key: act-search-decisions
+      handler: index.searchDecisionsAction
+    - key: act-check-plan
+      handler: index.checkPlanAction
+    - key: act-record-decision
+      handler: index.recordDecisionAction
+    - key: act-issue-context
+      handler: index.getIssueContextAction
+    - key: act-request-review
+      handler: index.requestReviewAction
+    - key: act-under-review
+      handler: index.listUnderReviewAction
     - key: on-jira-comment
       handler: index.onJiraComment
     - key: on-confluence-page
