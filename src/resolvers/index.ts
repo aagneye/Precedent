@@ -2,6 +2,7 @@ import { getAppContext } from '@forge/api';
 import Resolver from '@forge/resolver';
 import { loadContext } from '../app/context';
 import { sanitizeSettings, saveSettings } from '../config/settings';
+import { enqueueDemo, fileDemoIncidents, resetDemo } from '../demo/seed';
 import { DECISION_STATUSES, type DecisionPatch, type DecisionStatus } from '../domain/types';
 import { enqueueHarvest } from '../harvest/jobs';
 import { doc, paragraph, strong } from '../integrations/adf';
@@ -192,6 +193,33 @@ resolver.define('harvest.scanNow', async () => {
   if (!app.settings.ai.harvest) return { error: 'AI extraction is switched off in settings.' };
   await enqueueHarvest([{ type: 'scan' }]);
   return { ok: true };
+});
+
+// Demo company
+
+resolver.define('demo.load', async ({ payload, context }) => {
+  if (!(await currentUserIsAdmin())) return { error: 'Only Jira admins can load the demo company.' };
+  const projectKey = String(payload?.projectKey ?? '').toUpperCase();
+  if (!projectKey) return { error: 'Pick a Jira project for the demo issues.' };
+  const spaceId = typeof payload?.spaceId === 'string' && payload.spaceId ? payload.spaceId : undefined;
+  await saveSettings({
+    demo: { projectKey, spaceId, issueKeys: [], pageIds: [], loadedAt: new Date().toISOString(), status: 'loading' },
+  });
+  await enqueueDemo({ type: 'load', projectKey, spaceId, actorAccountId: (context as UiContext).accountId });
+  return { ok: true };
+});
+
+resolver.define('demo.incidents', async () => {
+  const app = await loadContext();
+  const projectKey = app.settings.demo?.projectKey;
+  if (!projectKey) return { error: 'Load the demo company first.' };
+  return { issueKeys: await fileDemoIncidents(projectKey) };
+});
+
+resolver.define('demo.reset', async () => {
+  if (!(await currentUserIsAdmin())) return { error: 'Only Jira admins can reset the demo company.' };
+  const app = await loadContext();
+  return { removed: await resetDemo(app) };
 });
 
 // Tripwires

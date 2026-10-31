@@ -213,6 +213,9 @@ modules:
     - key: harvest-queue-consumer
       queue: precedent-harvest
       function: harvest-consumer
+    - key: demo-queue-consumer
+      queue: precedent-demo
+      function: demo-consumer
   sql:
     - key: precedent-sql
       engine: mysql
@@ -247,6 +250,9 @@ modules:
     - key: tripwire-sweep
       handler: index.tripwireSweep
       timeoutSeconds: 900
+    - key: demo-consumer
+      handler: index.demoConsumer
+      timeoutSeconds: 900
 resources:
   - key: panel
     path: src/frontend/panel.tsx
@@ -270,6 +276,8 @@ permissions:
     - write:jira-work
     - read:jira-user
     - read:page:confluence
+    - write:page:confluence
+    - delete:page:confluence
     - read:space:confluence
     - read:graph:user:atlassian
     - read:graph:team:atlassian

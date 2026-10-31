@@ -30,6 +30,113 @@ function chosen(options: Option[], values: string[]): Option[] {
   return options.filter((o) => values.includes(o.value));
 }
 
+const POLL_MS = 4000;
+
+/** Loads Acme Pay, a fictional fintech with decisions, pages and issues that exercise every feature. */
+function DemoCard({
+  view,
+  projectOptions,
+  spaceOptions,
+  onChanged,
+}: {
+  view: SettingsView;
+  projectOptions: Option[];
+  spaceOptions: Option[];
+  onChanged: () => Promise<void>;
+}) {
+  const demo = view.settings.demo;
+  const [projectKey, setProjectKey] = useState<string | undefined>(demo?.projectKey);
+  const [spaceId, setSpaceId] = useState<string | undefined>(demo?.spaceId);
+  const [notice, setNotice] = useState<string>();
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (demo?.status !== 'loading') return undefined;
+    const timer = setInterval(() => void onChanged(), POLL_MS);
+    return () => clearInterval(timer);
+  }, [demo?.status, onChanged]);
+
+  const run = async (name: string, payload: Record<string, unknown>, success: (r: Record<string, unknown>) => string) => {
+    setBusy(true);
+    try {
+      const result = await call<Record<string, unknown> | Failure>(name, payload);
+      setNotice(isFailure(result) ? result.error : success(result));
+      await onChanged();
+    } catch (e) {
+      setNotice(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const status =
+    demo?.status === 'loading'
+      ? 'Building Acme Pay… this takes about a minute.'
+      : demo?.status === 'failed'
+        ? `The last load failed: ${demo.error ?? 'unknown error'}`
+        : demo
+          ? `Acme Pay is loaded in ${demo.projectKey}${demo.issueKeys.length ? ` (${demo.issueKeys.join(', ')})` : ''}.`
+          : undefined;
+
+  return (
+    <Box xcss={cardStyle}>
+      <Stack space="space.150">
+        <Heading size="small">Demo company</Heading>
+        <Text>
+          Acme Pay is a fictional payments company. Loading it adds 12 ratified decisions, 3 in the inbox, the Confluence
+          pages they came from, and Jira issues that conflict with them, such as "Migrate the ledger service to MongoDB".
+        </Text>
+        {status ? (
+          <Inline space="space.100" alignBlock="center">
+            {demo?.status === 'loading' ? <Spinner size="small" /> : null}
+            <Text weight="medium">{status}</Text>
+          </Inline>
+        ) : null}
+        {notice ? <Text size="small">{notice}</Text> : null}
+        <Label labelFor="demo-project">Jira project for the demo issues</Label>
+        <Select
+          inputId="demo-project"
+          options={projectOptions}
+          value={chosen(projectOptions, projectKey ? [projectKey] : [])[0] ?? null}
+          onChange={(option: Option | null) => setProjectKey(option?.value)}
+        />
+        <Label labelFor="demo-space">Confluence space for the demo pages (optional)</Label>
+        <Select
+          inputId="demo-space"
+          isClearable
+          options={spaceOptions}
+          value={chosen(spaceOptions, spaceId ? [spaceId] : [])[0] ?? null}
+          onChange={(option: Option | null) => setSpaceId(option?.value)}
+        />
+        <ButtonGroup>
+          <Button
+            appearance="primary"
+            isDisabled={busy || !projectKey || !view.isAdmin || demo?.status === 'loading'}
+            onClick={() => run('demo.load', { projectKey, spaceId }, () => 'Loading Acme Pay…')}
+          >
+            Load demo company
+          </Button>
+          <Button
+            isDisabled={busy || demo?.status !== 'ready'}
+            onClick={() =>
+              run('demo.incidents', {}, (r) => `Filed ${(r.issueKeys as string[]).join(', ')}. Run checks now on the Map to see DEC-2 trip.`)
+            }
+          >
+            File 3 P1 incidents
+          </Button>
+          <Button
+            appearance="subtle"
+            isDisabled={busy || !demo || !view.isAdmin}
+            onClick={() => run('demo.reset', {}, (r) => `Removed ${r.removed} demo decisions. Demo issues stay, labelled precedent-demo.`)}
+          >
+            Reset demo
+          </Button>
+        </ButtonGroup>
+      </Stack>
+    </Box>
+  );
+}
+
 /** Admin settings: what Precedent scans, where reviews go, how much AI it may use, and how agents connect. */
 export function SettingsTab() {
   const [view, setView] = useState<SettingsView>();
@@ -88,6 +195,8 @@ export function SettingsTab() {
           <Text>{notice}</Text>
         </SectionMessage>
       ) : null}
+
+      <DemoCard view={view} projectOptions={projectOptions} spaceOptions={spaceOptions} onChanged={load} />
 
       <Box xcss={cardStyle}>
         <Stack space="space.150">

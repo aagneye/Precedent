@@ -6,6 +6,8 @@ export interface DemoState {
   issueKeys: string[];
   pageIds: string[];
   loadedAt: string;
+  status?: 'loading' | 'ready' | 'failed';
+  error?: string;
 }
 
 export interface Settings {

@@ -7,6 +7,7 @@ export {
   requestReviewAction,
   searchDecisionsAction,
 } from './handlers/actions';
+export { demoConsumer } from './handlers/demo';
 export { harvestConsumer, harvestSweep, onConfluencePage, onJiraComment } from './handlers/harvest';
 export { tripwireSweep } from './handlers/tripwires';
 export { uiResolver } from './resolvers';
