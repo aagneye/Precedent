@@ -1,4 +1,20 @@
 modules:
+  jira:issuePanel:
+    - key: precedent-issue-panel
+      resource: panel
+      resolver:
+        function: ui-resolver
+      render: native
+      title: Precedent
+      icon: resource:icons;precedent.svg
+  jira:globalPage:
+    - key: precedent-home
+      resource: home
+      resolver:
+        function: ui-resolver
+      render: native
+      title: Precedent
+      icon: resource:icons;precedent.svg
   trigger:
     - key: harvest-jira-comment
       function: on-jira-comment
@@ -27,6 +43,8 @@ modules:
       model:
         - claude
   function:
+    - key: ui-resolver
+      handler: index.uiResolver
     - key: on-jira-comment
       handler: index.onJiraComment
     - key: on-confluence-page
@@ -36,6 +54,13 @@ modules:
     - key: harvest-consumer
       handler: index.harvestConsumer
       timeoutSeconds: 900
+resources:
+  - key: panel
+    path: src/frontend/panel.tsx
+  - key: home
+    path: src/frontend/home.tsx
+  - key: icons
+    path: static/icons
 app:
   # Replaced by `forge register`.
   id: ari:cloud:ecosystem::app/00000000-0000-0000-0000-000000000000
