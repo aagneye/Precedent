@@ -1,4 +1,8 @@
+import type { UsageSnapshot } from '../ai/llm';
+import type { Settings } from '../config/settings';
 import type { GuardResult } from '../guard/check';
+import type { SpaceSummary } from '../integrations/confluence';
+import type { ProjectSummary } from '../integrations/jira';
 import type { DecisionView, EventView } from './decisionView';
 
 /** Response shapes shared by the UI resolvers and the UI Kit frontend. Type-only. */
@@ -23,6 +27,16 @@ export interface DecisionDetail {
 export interface DecisionResult {
   decision: DecisionView;
   reviewIssueKey?: string;
+}
+
+export interface SettingsView {
+  settings: Settings;
+  isAdmin: boolean;
+  projects: ProjectSummary[];
+  spaces: SpaceSummary[];
+  usage: UsageSnapshot;
+  /** Where external MCP clients connect, once a site admin has allowed it. */
+  mcpUrl?: string;
 }
 
 export function isFailure(value: unknown): value is Failure {

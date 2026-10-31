@@ -1,14 +1,18 @@
+import { getAppContext } from '@forge/api';
 import Resolver from '@forge/resolver';
 import { loadContext } from '../app/context';
+import { sanitizeSettings, saveSettings } from '../config/settings';
 import { DECISION_STATUSES, type DecisionPatch, type DecisionStatus } from '../domain/types';
+import { enqueueHarvest } from '../harvest/jobs';
 import { doc, paragraph, strong } from '../integrations/adf';
-import { addComment } from '../integrations/jira';
+import { listSpaces } from '../integrations/confluence';
+import { addComment, currentUserIsAdmin, listProjects } from '../integrations/jira';
 import { checkIssue, ratify, requestReview } from '../services/decisions';
 import { graphLookups } from '../tripwires/graphLookups';
 import { sweepTripwires } from '../tripwires/run';
 import { toDecisionView, toEventView } from '../views/decisionView';
 import { buildMap, type MapView } from '../views/mapView';
-import type { DecisionDetail, Failure, PanelView } from '../views/uiTypes';
+import type { DecisionDetail, Failure, PanelView, SettingsView } from '../views/uiTypes';
 
 interface UiContext {
   accountId?: string;
@@ -151,6 +155,43 @@ resolver.define('map.data', async (): Promise<MapView> => {
     }),
   );
   return buildMap(decisions, events, checks, teamOfOwner);
+});
+
+// Settings
+
+/** The app's MCP endpoint, built from the running app's id. */
+function mcpUrl(): string | undefined {
+  try {
+    const id = getAppContext().appAri.appId;
+    return id ? `https://mcp.atlassian.com/forge/${id}` : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+resolver.define('settings.get', async (): Promise<SettingsView> => {
+  const app = await loadContext();
+  const [isAdmin, projects, spaces, usage] = await Promise.all([
+    currentUserIsAdmin(),
+    listProjects().catch(() => []),
+    // Empty when the app isn't installed in Confluence on this site.
+    listSpaces().catch(() => []),
+    app.meter.snapshot(),
+  ]);
+  return { settings: app.settings, isAdmin, projects, spaces, usage, mcpUrl: mcpUrl() };
+});
+
+resolver.define('settings.save', async ({ payload, context }) => {
+  if (!(await currentUserIsAdmin())) return { error: 'Only Jira admins can change Precedent settings.' };
+  const settings = await saveSettings({ ...sanitizeSettings(payload?.settings), adminAccountId: (context as UiContext).accountId });
+  return { settings };
+});
+
+resolver.define('harvest.scanNow', async () => {
+  const app = await loadContext();
+  if (!app.settings.ai.harvest) return { error: 'AI extraction is switched off in settings.' };
+  await enqueueHarvest([{ type: 'scan' }]);
+  return { ok: true };
 });
 
 // Tripwires

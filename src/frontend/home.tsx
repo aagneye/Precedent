@@ -3,6 +3,7 @@ import ForgeReconciler, { Box, Heading, Stack, Tab, TabList, TabPanel, Tabs, Tex
 import { DecisionsTab } from './home/DecisionsTab';
 import { InboxTab } from './home/InboxTab';
 import { MapTab } from './home/MapTab';
+import { SettingsTab } from './home/SettingsTab';
 
 const App = () => (
   <Stack space="space.300">
@@ -15,6 +16,7 @@ const App = () => (
         <Tab>Map</Tab>
         <Tab>Inbox</Tab>
         <Tab>Decisions</Tab>
+        <Tab>Settings</Tab>
       </TabList>
       <TabPanel>
         <Box paddingBlock="space.200">
@@ -29,6 +31,11 @@ const App = () => (
       <TabPanel>
         <Box paddingBlock="space.200">
           <DecisionsTab />
+        </Box>
+      </TabPanel>
+      <TabPanel>
+        <Box paddingBlock="space.200">
+          <SettingsTab />
         </Box>
       </TabPanel>
     </Tabs>
